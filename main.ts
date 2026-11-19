@@ -52,7 +52,43 @@ if (issue !== null) {
 
 mkdirSync(out, { recursive: true });
 writeFileSync(join(out, 'board.json'), `${JSON.stringify({ rows: board })}\n`);
-writeFileSync(join(out, 'data.js'), dataScript(radar));
+// Retain the actual listing fields behind each detail's snapshot status.
+const recordedProtocols = new Map(snapshot.protocols.map((protocol) => [protocol.slug, protocol]));
+const detailRows = radar.rows.map((row) => {
+  const record = recordedProtocols.get(row.slug)!;
+  return {
+    ...row,
+    token_status: {
+      snapshot_date: snapshot.as_of,
+      snapshot_source: snapshot.source,
+      symbol: record.symbol,
+      gecko_id: record.gecko_id,
+      // Protocol documentation is a separate evidence layer from the frozen listing.
+      product_evidence: row.slug === 'onre' ? {
+        checked_on: '2026-11-19',
+        observations: [
+          {
+            finding: 'ONyc is an issued yield-bearing asset representing exposure to a reinsurance account on Solana. A separate OnRe governance token launch remains unverified by this evidence.',
+            publisher: 'OnRe · Tokenized Reinsurance (ONyc)',
+            url: 'https://docs.onre.finance/introduction/onre-tokenized-reinsurance-onyc',
+          },
+          {
+            finding: 'OnRe documents two routes for ONyc: Open Access (subject to jurisdictional restrictions) and Institutional Access (KYC/KYB).',
+            publisher: 'OnRe · Open Access vs Institutional Access',
+            url: 'https://docs.onre.finance/for-capital-providers/open-access-vs-institutional-access',
+          },
+          {
+            finding: 'OnRe Points track participation. The program says points are non-transferable and give no entitlement to tokens or financial rewards.',
+            publisher: 'OnRe · Points Program',
+            url: 'https://docs.onre.finance/onyc-in-defi/onre-points-program',
+          },
+        ],
+      } : null,
+    },
+  };
+});
+const dashboardData = { ...radar, rows: detailRows };
+writeFileSync(join(out, 'data.js'), dataScript(dashboardData));
 
 /** Copy one directory's regular files into `to`, skipping names that start with a dot. */
 function copyFiles(from: string, to: string): string[] {

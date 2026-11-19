@@ -296,6 +296,30 @@
   var dialog = el('dialog', { class: 'detail', id: 'detail', 'aria-labelledby': 'detail-title' });
   dialog.addEventListener('close', function () { state.selected = null; writeHash(); });
 
+  function tokenStatusSection(status) {
+    var hasListing = status.symbol !== null || status.gecko_id !== null;
+    var section = el('section', { class: 'detail-section', 'aria-label': 'Token status' },
+      el('h3', { text: 'Token status' }),
+      el('p', { text: hasListing
+        ? 'DefiLlama recorded a token listing on ' + status.snapshot_date + '.'
+        : 'DefiLlama recorded no token listing on ' + status.snapshot_date + '. Current issuance can differ from that record.' }),
+      el('p', { class: 'sub', text: 'Snapshot evidence: symbol ' + (status.symbol ?? 'unreported')
+        + ' · CoinGecko ID ' + (status.gecko_id ?? 'unreported') + ' · ' + status.snapshot_source })
+    );
+    if (status.product_evidence) {
+      var evidence = status.product_evidence;
+      section.appendChild(el('h4', { text: 'Protocol evidence · checked ' + evidence.checked_on }));
+      section.appendChild(el('ul', { class: 'steps' }, evidence.observations.map(function (item) {
+        // Keep citations visible as text so the offline page needs no network.
+        return el('li', null,
+          el('p', { text: item.finding }),
+          el('p', { class: 'sub', text: item.publisher + ' · ' + item.url })
+        );
+      })));
+    }
+    return section;
+  }
+
   function openDetail(slug) {
     var row = DATA.rows.filter(function (r) { return r.slug === slug; })[0];
     if (!row) return;
@@ -311,6 +335,7 @@
       ),
       el('button', { class: 'close', type: 'button', 'aria-label': 'Close details', text: 'Close', onclick: function () { dialog.close(); } })
     ));
+    dialog.appendChild(tokenStatusSection(row.token_status));
     dialog.appendChild(el('section', { class: 'detail-section' },
       el('h3', { text: 'Implied value' }),
       el('div', { class: 'equation' },

@@ -309,6 +309,8 @@
     if (status.product_evidence) {
       var evidence = status.product_evidence;
       section.appendChild(el('h4', { text: 'Protocol evidence · checked ' + evidence.checked_on }));
+      section.appendChild(el('p', { class: 'sub',
+        text: 'The implied value below models a hypothetical protocol token launch. Product evidence is shown separately from that estimate.' }));
       section.appendChild(el('ul', { class: 'steps' }, evidence.observations.map(function (item) {
         // Keep citations visible as text so the offline page needs no network.
         return el('li', null,
@@ -341,7 +343,9 @@
       el('div', { class: 'equation' },
         el('div', null, el('span', { text: 'TVL' }), el('b', { class: 'num', text: fmtUsd(row.tvl_usd) })),
         el('div', null, el('span', { text: 'Seven-day growth' }), el('b', { class: 'num', text: fmtPct(row.change_7d) })),
-        el('div', null, el('span', { text: 'Age with no token' }), el('b', { class: 'num', text: fmtAge(row.age_days) })),
+        el('div', null,
+          el('span', { text: 'Time tracked by DefiLlama' }),
+          el('b', { class: 'num', text: fmtAge(row.age_days) })),
         el('div', null, el('span', { text: 'Growth multiplier' }), el('b', { class: 'num', text: String(row.growth_multiplier) })),
         el('div', null, el('span', { text: 'Maturity multiplier' }), el('b', { class: 'num', text: String(row.maturity_multiplier) })),
         el('div', null, el('span', { text: 'Implied value' }), el('b', { class: 'num', text: fmtUsd(row.implied_value_usd) }))

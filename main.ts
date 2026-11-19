@@ -61,6 +61,8 @@ const detailRows = radar.rows.map((row) => {
     token_status: {
       snapshot_date: snapshot.as_of,
       snapshot_source: snapshot.source,
+      // A symbol or CoinGecko ID is evidence of a listing in this snapshot.
+      has_recorded_listing: record.symbol !== null || record.gecko_id !== null,
       symbol: record.symbol,
       gecko_id: record.gecko_id,
       // Protocol documentation is a separate evidence layer from the frozen listing.

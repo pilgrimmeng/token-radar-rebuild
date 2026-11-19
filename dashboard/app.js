@@ -297,7 +297,7 @@
   dialog.addEventListener('close', function () { state.selected = null; writeHash(); });
 
   function tokenStatusSection(status) {
-    var hasListing = status.symbol !== null || status.gecko_id !== null;
+    var hasListing = status.has_recorded_listing;
     var section = el('section', { class: 'detail-section', 'aria-label': 'Token status' },
       el('h3', { text: 'Token status' }),
       el('p', { text: hasListing

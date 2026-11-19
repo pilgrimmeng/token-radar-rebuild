@@ -42,6 +42,7 @@ export interface Snapshot {
 
 /** The model's constants, as the dashboard states them and the sandbox may change them. */
 export interface ModelConstants {
+  comparable_count?: number;
   base_multiple: number;
   growth_weight: number;
   growth_floor: number;
@@ -64,7 +65,36 @@ export const MODEL: ModelConstants = {
 };
 
 /** The model's version label: the dashboard names it and the rules quote it. */
-export const MODEL_VERSION = 'radar-1';
+export const MODEL_VERSION = 'radar-2-comparable-median';
+
+/** One liquid observation per independently identified token, with a deterministic tie break. */
+export function calibrateModel(snapshot: Snapshot): ModelConstants {
+  const candidates = snapshot.protocols.filter((row) =>
+    row.gecko_id && row.tvl_usd > 0 && row.mcap_usd !== null && row.mcap_usd > 0);
+  candidates.sort((a, b) => b.tvl_usd - a.tvl_usd || (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
+
+  const seen = new Set<string>();
+  const ratios: number[] = [];
+  for (const row of candidates) {
+    const token = row.gecko_id!.trim().toLowerCase();
+    if (!token || seen.has(token)) continue;
+    seen.add(token);
+    const { growthMult, maturityMult } = impliedValue(row, snapshot.as_of, MODEL);
+    ratios.push(row.mcap_usd! / (row.tvl_usd * growthMult * maturityMult));
+  }
+
+  // A median limits sensitivity to extreme caps. With sparse evidence keep the starter prior.
+  // Clamp the fitted scale to keep thin-market comparables from setting an extreme forecast.
+  ratios.sort((a, b) => a - b);
+  const midpoint = Math.floor(ratios.length / 2);
+  const median = ratios.length < 10 ? MODEL.base_multiple
+    : (ratios[Math.floor((ratios.length - 1) / 2)]! + ratios[midpoint]!) / 2;
+  return {
+    ...MODEL,
+    base_multiple: Math.min(2, Math.max(0.05, median)),
+    comparable_count: ratios.length,
+  };
+}
 
 /** How many pre-token protocols below the watchlist floor the early radar carries, by TVL. */
 export const EARLY_ROWS = 160;
@@ -388,7 +418,7 @@ export function radarRow(row: BoardRow): RadarRow {
 }
 
 /** Everything the dashboard renders, from the snapshot. */
-export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): { board: BoardRow[]; radar: RadarData } {
+export function buildRadar(snapshot: Snapshot, model: ModelConstants = calibrateModel(snapshot)): { board: BoardRow[]; radar: RadarData } {
   const board = buildBoard(snapshot, model);
   const live = liveRows(snapshot);
   const early = board.filter((r) => !snapshot.watchlist.includes(r.slug)).length;

@@ -285,11 +285,12 @@
     var m = DATA.model;
     return el('section', { class: 'panel model' },
       el('h2', { text: 'How implied value is computed' }),
-      el('p', { class: 'sub', text: 'Every row is scored by one function of the snapshot figures. No protocol name is special-cased, and no row is hand-picked.' }),
+      el('p', { class: 'sub', text: 'The scale uses market-cap-to-adjusted-TVL ratios from ' + m.comparable_count + ' distinct listed tokens. Each CoinGecko ID contributes once; the observation with the largest TVL represents it.' }),
+      el('p', { class: 'sub', text: 'The median scale is bounded between 0.05× and 2×. Under 10 comparables the starter scale of 0.25× is used. The fit describes this snapshot and does not estimate launch probability.' }),
       el('div', { class: 'formula' },
         'implied = round( tvl_usd x ' + m.base_multiple + ' x (1 + clamp(change_7d, ' + m.growth_floor + ', ' + m.growth_cap + ') / 100 x ' + m.growth_weight + ') x (' + m.maturity_floor + ' + min(age_days, ' + m.maturity_days + ') / ' + m.maturity_days + ' x ' + m.maturity_range + ') )'
       ),
-      el('p', { class: 'sub', text: 'TVL and seven-day growth come from the snapshot. Age is the time since the protocol was first listed, the best record of how long it has run with no token; an unlisted age uses ' + m.unknown_age_days + ' days. The early radar is every pre-token protocol below the watchlist floor, by TVL, and the live-token protocols are set aside with their market caps shown.' })
+      el('p', { class: 'sub', text: 'TVL and seven-day growth come from the snapshot. Age is time tracked by DefiLlama; missing age uses ' + m.unknown_age_days + ' days. Watchlist candidates and early candidates are scored on the same scale.' })
     );
   }
 

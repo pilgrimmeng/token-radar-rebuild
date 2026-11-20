@@ -19,6 +19,8 @@ import { fileURLToPath } from 'node:url';
 import { boardIssue, buildRadar, dataScript, parseSnapshot } from './lib/model.ts';
 import { buildDossier } from './vendor/makefun-board.ts';
 
+import { productResearch } from './lib/evidence.ts';
+
 const here = fileURLToPath(new URL('.', import.meta.url));
 
 /** The scorer's own caps (reference/gate.json): the text cap shapes the bytes, the rest refuse. */
@@ -56,6 +58,7 @@ writeFileSync(join(out, 'board.json'), `${JSON.stringify({ rows: board })}\n`);
 const recordedProtocols = new Map(snapshot.protocols.map((protocol) => [protocol.slug, protocol]));
 const detailRows = radar.rows.map((row) => {
   const record = recordedProtocols.get(row.slug)!;
+  const evidence = productResearch[row.slug];
   return {
     ...row,
     token_status: {
@@ -63,6 +66,7 @@ const detailRows = radar.rows.map((row) => {
       snapshot_source: snapshot.source,
       // A symbol or CoinGecko ID is evidence of a listing in this snapshot.
       has_recorded_listing: record.symbol !== null || record.gecko_id !== null,
+      label: evidence?.kind ?? "No listing in snapshot",
       symbol: record.symbol,
       gecko_id: record.gecko_id,
       // Protocol documentation is a separate evidence layer from the frozen listing.
@@ -85,6 +89,9 @@ const detailRows = radar.rows.map((row) => {
             url: 'https://docs.onre.finance/onyc-in-defi/onre-points-program',
           },
         ],
+      } : evidence ? {
+        checked_on: evidence.checkedOn,
+        observations: [{ finding: evidence.identity, publisher: evidence.publisher, url: evidence.source }],
       } : null,
     },
   };

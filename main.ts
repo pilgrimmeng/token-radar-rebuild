@@ -20,7 +20,7 @@ import { boardIssue, buildRadar, dataScript, parseSnapshot } from './lib/model.t
 import { buildDossier } from './vendor/makefun-board.ts';
 
 import { measureRefitSensitivity } from './lib/stability.ts';
-import { calibrationDiagnostic } from './lib/diagnostics.ts';
+import { calibrationDiagnostic, fixedTvlEstimate, valuationComparison } from './lib/diagnostics.ts';
 import { productResearch } from './lib/evidence.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -56,9 +56,9 @@ if (issue !== null) {
 
 const { rows: sensitivity, ...refitInfo } = measureRefitSensitivity(snapshot, board.map(row => row.slug));
 const diagnostic = calibrationDiagnostic(snapshot);
-const enrichedBoard = board.map(row => ({ ...row, refit_sensitivity: sensitivity.get(row.slug)! }));
+const enrichedBoard = board.map(row => ({ ...row, fixed_tvl_estimate_usd: fixedTvlEstimate(row.tvl_usd), refit_sensitivity: sensitivity.get(row.slug)! }));
 mkdirSync(out, { recursive: true });
-writeFileSync(join(out, 'board.json'), `${JSON.stringify({ rows: enrichedBoard, refit_sensitivity: refitInfo, calibration_diagnostic: diagnostic })}\n`);
+writeFileSync(join(out, 'board.json'), `${JSON.stringify({ rows: enrichedBoard, refit_sensitivity: refitInfo, calibration_diagnostic: diagnostic, valuation_comparison: valuationComparison })}\n`);
 // Retain the actual listing fields behind each detail's snapshot status.
 const recordedProtocols = new Map(snapshot.protocols.map((protocol) => [protocol.slug, protocol]));
 const detailRows = radar.rows.map((row) => {
@@ -66,6 +66,7 @@ const detailRows = radar.rows.map((row) => {
   const evidence = productResearch[row.slug];
   return {
     ...row,
+    fixed_tvl_estimate_usd: fixedTvlEstimate(row.tvl_usd),
     refit_sensitivity: sensitivity.get(row.slug)!,
     token_status: {
       snapshot_date: snapshot.as_of,
@@ -102,7 +103,7 @@ const detailRows = radar.rows.map((row) => {
     },
   };
 });
-const dashboardData = { ...radar, refit_sensitivity: refitInfo, rows: detailRows, calibration_diagnostic: diagnostic };
+const dashboardData = { ...radar, refit_sensitivity: refitInfo, rows: detailRows, calibration_diagnostic: diagnostic, valuation_comparison: valuationComparison };
 writeFileSync(join(out, 'data.js'), dataScript(dashboardData));
 
 /** Copy one directory's regular files into `to`, skipping names that start with a dot. */

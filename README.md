@@ -14,7 +14,9 @@ node main.ts --input /path/to/kit/input/snapshot.json --output ./out
 
 Open `out/dashboard/index.html`. Use the search box or category selector to narrow the board, sort by column, and select a row for its evidence, implied value, and participation checks. The same entrypoint writes `board.json` and `dossier.json`.
 
-## What the estimate means
+## Valuation and held-out comparison
+
+The fitted growth-and-age estimate drives the ranking and is exported as `implied_value_usd`. Each candidate also has a fixed reference of 0.25 × snapshot TVL in `fixed_tvl_estimate_usd`. In leave-one-token-out evaluation on 128 traded comparables, the fixed reference had lower median absolute log error (1.591 versus 1.647). The comparison changes both the scale and the use of growth and age, so it cannot isolate calibration's contribution. We retain the fitted estimate as the radar's growth- and age-adjusted scenario. Constant ranks across refits reflect the shared scale and provide no evidence of ranking robustness.
 
 The scale is the median market-cap-to-adjusted-TVL ratio across distinct CoinGecko IDs in the snapshot. Each ID supplies its largest-TVLed protocol record. Growth and listing age use bounded starter adjustments. With fewer than 10 comparables, the fallback scale is 0.25. The fitted scale stays between 0.05 and 2.
 

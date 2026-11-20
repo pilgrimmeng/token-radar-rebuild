@@ -195,7 +195,7 @@
     return el('div', { class: 'panel' },
       el('div', { class: 'table-wrap' },
         el('table', null,
-          el('caption', { class: 'sub', text: 'Candidates ordered by hypothetical implied value. Select a row for evidence and participation checks.' }),
+          el('caption', { class: 'sub', text: 'Candidates ordered by the fitted growth-and-age estimate. Select a row for evidence and participation checks.' }),
           el('thead', null, el('tr', null,
             sortHeader('implied', 'Rank'),
             sortHeader('name', 'Protocol'),
@@ -238,8 +238,14 @@
     var diagnostic = DATA.calibration_diagnostic;
     if (!diagnostic || !diagnostic.overall) return el('p', { text: 'Too few unique token comparables for held-out evaluation.' });
     var summary = diagnostic.overall;
+    var comparison = DATA.valuation_comparison;
+    var fittedError = summary.median_absolute_log_error;
+    var referenceError = summary.baseline_median_absolute_log_error;
+    var result = fittedError === referenceError ? 'The models tie on this metric.'
+      : (fittedError < referenceError ? comparison.primary.label : comparison.reference.label) + ' has the lower held-out error.';
     return el('section', { class: 'panel model', 'aria-label': 'Calibration diagnostic' },
       el('h2', { text: 'Held-out calibration check' }),
+      el('p', { text: result + ' ' + comparison.primary.rationale }),
       el('p', { text: summary.count + ' distinct token comparables; each prediction fits the scale using all other tokens.' }),
       el('p', { text: 'Median absolute log error: fitted ' + summary.median_absolute_log_error.toFixed(3)
         + ' · fixed 0.25× TVL baseline ' + summary.baseline_median_absolute_log_error.toFixed(3) }),
@@ -311,7 +317,7 @@
         el('div', null, el('dt', { text: 'Rank' }), el('dd', { text: [rank.p05, rank.median, rank.p95].map(function (n) { return '#' + n; }).join(' / ') })),
         el('div', null, el('dt', { text: 'Top ' + config.top_count + ' inclusion' }), el('dd', { text: inclusion + '%' }))
       ),
-      el('p', { class: 'sub', text: 'The refits change a shared value scale, so relative ranks are structurally invariant (rounding can create ties). These ranges describe model refits on this snapshot, rather than uncertainty about realized launch values.' })
+      el('p', { class: 'sub', text: 'The refits change a shared value scale, so relative ranks are structurally invariant (rounding can create ties). Constant ranks provide no evidence of ranking robustness. These ranges describe model refits on this snapshot.' })
     );
   }
 
@@ -332,7 +338,8 @@
     ));
     dialog.appendChild(tokenStatusSection(row.token_status));
     dialog.appendChild(el('section', { class: 'detail-section' },
-      el('h3', { text: 'Implied value' }),
+      el('h3', { text: 'Fitted growth-and-age estimate' }),
+      el('p', { text: DATA.valuation_comparison.reference.label + ' · ' + usd.format(row.fixed_tvl_estimate_usd) }),
       el('div', { class: 'equation' },
         el('div', null, el('span', { text: 'TVL' }), el('b', { class: 'num', text: fmtUsd(row.tvl_usd) })),
         el('div', null, el('span', { text: 'Seven-day growth' }), el('b', { class: 'num', text: fmtPct(row.change_7d) })),

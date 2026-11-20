@@ -65,7 +65,9 @@ try {
       const rankRange = [summary.rank.p05, summary.rank.median, summary.rank.p95].map(rank => '#' + rank).join(' / ');
       const inclusion = (100 * summary.top_count_hits / window.RADAR.refit_sensitivity.refits).toFixed(1) + '%';
       const refitMatches = JSON.stringify(shownRange) === JSON.stringify([valueRange, rankRange, inclusion]);
-      if (!parity || !refitMatches || JSON.stringify(steps) !== JSON.stringify(row.farm_steps)) {
+      const fixedReference = number.format(row.fixed_tvl_estimate_usd);
+      const referenceMatches = dialog.textContent.includes('Fixed 0.25× TVL reference · ' + fixedReference);
+      if (!referenceMatches || !parity || !refitMatches || JSON.stringify(steps) !== JSON.stringify(row.farm_steps)) {
         mismatches.push(row.slug);
       }
       dialog.close();

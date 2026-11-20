@@ -11,6 +11,21 @@ interface Prediction {
   training_count: number;
 }
 
+export function fixedTvlEstimate(tvlUsd: number): number {
+  return Math.max(1, Math.round(tvlUsd * MODEL.base_multiple));
+}
+
+export const valuationComparison = {
+  primary: {
+    label: 'Fitted growth-and-age model',
+    rationale: 'Retained for the radar ranking because it includes bounded growth and listing-age adjustments. The holdout compares the complete fitted model with a TVL-only reference; it cannot isolate the effect of fitting the scale.',
+  },
+  reference: {
+    label: 'Fixed 0.25× TVL reference',
+    formula: 'One quarter of snapshot TVL, rounded to dollars with a minimum of one dollar.',
+  },
+};
+
 /** Median absolute natural-log error is insensitive to the units used for valuation. */
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
@@ -39,7 +54,7 @@ export function calibrationDiagnostic(snapshot: Snapshot) {
     const training = comparables.filter((_, trainingIndex) => trainingIndex !== index);
     const fitted = fitComparables(training, snapshot.as_of);
     const predicted = impliedValue(heldOut, snapshot.as_of, fitted).implied;
-    const baseline = Math.max(1, Math.round(heldOut.tvl_usd * MODEL.base_multiple));
+    const baseline = fixedTvlEstimate(heldOut.tvl_usd);
     const observed = heldOut.mcap_usd!;
     return {
       slug: heldOut.slug,

@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { boardIssue, buildRadar, dataScript, parseSnapshot } from './lib/model.ts';
 import { buildDossier } from './vendor/makefun-board.ts';
 
+import { measureRefitSensitivity } from './lib/stability.ts';
 import { productResearch } from './lib/evidence.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -52,8 +53,10 @@ if (issue !== null) {
   process.exit(1);
 }
 
+const { rows: sensitivity, ...refitInfo } = measureRefitSensitivity(snapshot, board.map(row => row.slug));
+const enrichedBoard = board.map(row => ({ ...row, refit_sensitivity: sensitivity.get(row.slug)! }));
 mkdirSync(out, { recursive: true });
-writeFileSync(join(out, 'board.json'), `${JSON.stringify({ rows: board })}\n`);
+writeFileSync(join(out, 'board.json'), `${JSON.stringify({ rows: enrichedBoard, refit_sensitivity: refitInfo })}\n`);
 // Retain the actual listing fields behind each detail's snapshot status.
 const recordedProtocols = new Map(snapshot.protocols.map((protocol) => [protocol.slug, protocol]));
 const detailRows = radar.rows.map((row) => {
@@ -61,6 +64,7 @@ const detailRows = radar.rows.map((row) => {
   const evidence = productResearch[row.slug];
   return {
     ...row,
+    refit_sensitivity: sensitivity.get(row.slug)!,
     token_status: {
       snapshot_date: snapshot.as_of,
       snapshot_source: snapshot.source,
@@ -96,7 +100,7 @@ const detailRows = radar.rows.map((row) => {
     },
   };
 });
-const dashboardData = { ...radar, rows: detailRows };
+const dashboardData = { ...radar, refit_sensitivity: refitInfo, rows: detailRows };
 writeFileSync(join(out, 'data.js'), dataScript(dashboardData));
 
 /** Copy one directory's regular files into `to`, skipping names that start with a dot. */

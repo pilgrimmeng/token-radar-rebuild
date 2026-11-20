@@ -70,20 +70,28 @@ export const MODEL: ModelConstants = {
 export const MODEL_VERSION = 'radar-2-comparable-median';
 
 /** One liquid observation per independently identified token, with a deterministic tie break. */
-export function calibrateModel(snapshot: Snapshot): ModelConstants {
+export function tradedComparables(snapshot: Snapshot): SnapshotProtocol[] {
   const candidates = snapshot.protocols.filter((row) =>
     row.gecko_id && row.tvl_usd > 0 && row.mcap_usd !== null && row.mcap_usd > 0);
   candidates.sort((a, b) => b.tvl_usd - a.tvl_usd || (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
 
   const seen = new Set<string>();
-  const ratios: number[] = [];
+  const unique: SnapshotProtocol[] = [];
   for (const row of candidates) {
     const token = row.gecko_id!.trim().toLowerCase();
     if (!token || seen.has(token)) continue;
     seen.add(token);
-    const { growthMult, maturityMult } = impliedValue(row, snapshot.as_of, MODEL);
-    ratios.push(row.mcap_usd! / (row.tvl_usd * growthMult * maturityMult));
+    unique.push(row);
   }
+  return unique;
+}
+
+/** Fit a supplied sample, retaining the bootstrap multiplicity of each draw. */
+export function fitComparables(sample: readonly SnapshotProtocol[], asOf: string): ModelConstants {
+  const ratios = sample.map(row => {
+    const { growthMult, maturityMult } = impliedValue(row, asOf, MODEL);
+    return row.mcap_usd! / (row.tvl_usd * growthMult * maturityMult);
+  });
 
   // A median limits sensitivity to extreme caps. With sparse evidence keep the starter prior.
   // Clamp the fitted scale to keep thin-market comparables from setting an extreme forecast.
@@ -96,6 +104,10 @@ export function calibrateModel(snapshot: Snapshot): ModelConstants {
     base_multiple: Math.min(2, Math.max(0.05, median)),
     comparable_count: ratios.length,
   };
+}
+
+export function calibrateModel(snapshot: Snapshot): ModelConstants {
+  return fitComparables(tradedComparables(snapshot), snapshot.as_of);
 }
 
 /** How many pre-token protocols below the watchlist floor the early radar carries, by TVL. */

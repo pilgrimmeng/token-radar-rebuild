@@ -173,7 +173,10 @@
         onclick: function () { openDetail(r.slug); },
         onkeydown: function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(r.slug); } }
       },
-        el('td', { class: 'num', text: String(r.rank) }),
+        el('td', null,
+          el('span', { class: 'num', text: String(r.rank) }),
+          el('span', { class: 'sub', title: 'Refit rank: 5th to 95th percentile', text: ' · ' + rankBand(r.refit_sensitivity.rank) })
+        ),
         el('td', null, el('div', { class: 'name' },
           el('b', { text: r.name }),
           el('span', { class: 'sub', text: (r.category || 'Other') + ' on ' + (r.chains && r.chains.length ? r.chains.slice(0, 2).join(', ') : 'an unnamed chain') })
@@ -273,6 +276,28 @@
     return section;
   }
 
+  function rankBand(range) {
+    return range.p05 === range.p95 ? '#' + range.median : '#' + range.p05 + '–' + range.p95;
+  }
+
+  function sensitivityPanel(row) {
+    var summary = row.refit_sensitivity;
+    var config = DATA.refit_sensitivity;
+    var rank = summary.rank;
+    var value = summary.value_usd;
+    var inclusion = (100 * summary.top_count_hits / config.refits).toFixed(1);
+    return el('section', { class: 'detail-section', 'aria-label': 'Refit sensitivity' },
+      el('h3', { text: 'Refit sensitivity' }),
+      el('p', { class: 'sub', text: config.refits + ' category-stratified calibration refits on the same candidate universe. Values show empirical 5th, median and 95th percentiles.' }),
+      el('dl', { class: 'equation' },
+        el('div', null, el('dt', { text: 'Implied value' }), el('dd', { text: [value.p05, value.median, value.p95].map(usd.format).join(' / ') })),
+        el('div', null, el('dt', { text: 'Rank' }), el('dd', { text: [rank.p05, rank.median, rank.p95].map(function (n) { return '#' + n; }).join(' / ') })),
+        el('div', null, el('dt', { text: 'Top ' + config.top_count + ' inclusion' }), el('dd', { text: inclusion + '%' }))
+      ),
+      el('p', { class: 'sub', text: 'The refits change a shared value scale, so ranks typically stay fixed. These ranges describe model refits on this snapshot, rather than uncertainty about realized launch values.' })
+    );
+  }
+
   function openDetail(slug) {
     var row = DATA.rows.filter(function (r) { return r.slug === slug; })[0];
     if (!row) return;
@@ -303,6 +328,7 @@
       ),
       el('p', { class: 'sub', text: 'Model ' + DATA.model_version + ': the same function scores every protocol. The page recomputes this row as ' + usd.format(impliedOf(row, DATA.model)) + (impliedOf(row, DATA.model) === row.implied_value_usd ? ', the same number board.json carries.' : ', which differs from the board: the data would be stale.') + ' This is an estimate, not a price.' })
     ));
+    dialog.appendChild(sensitivityPanel(row));
     dialog.appendChild(el('section', { class: 'detail-section' },
       el('h3', { text: 'Participation checks' }),
       el('ol', { class: 'steps' }, steps.map(function (s) {

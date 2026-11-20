@@ -31,6 +31,13 @@ try {
   const table = page.getByRole('table');
   await table.waitFor();
   assert.equal(await table.locator('tbody tr').count(), rows.length);
+  const diagnostic = page.getByRole('region', { name: 'Calibration diagnostic' });
+  await diagnostic.waitFor();
+  const exported = JSON.parse(await readFile(join(output, 'board.json'), 'utf8')).calibration_diagnostic;
+  const diagnosticText = await diagnostic.innerText();
+  assert.ok(diagnosticText.includes(exported.overall.count + ' distinct token comparables'));
+  assert.ok(diagnosticText.includes(exported.overall.median_absolute_log_error.toFixed(3)));
+  assert.ok(diagnosticText.includes(exported.overall.baseline_median_absolute_log_error.toFixed(3)));
   await page.screenshot({ path: join(directory, '1-board.png') });
 
   // Exercise the rendered detail calculations and compare their values and plans to board.json.

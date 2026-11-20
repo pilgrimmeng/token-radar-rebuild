@@ -234,6 +234,23 @@
     );
   }
 
+  function diagnosticPanel() {
+    var diagnostic = DATA.calibration_diagnostic;
+    if (!diagnostic || !diagnostic.overall) return el('p', { text: 'Too few unique token comparables for held-out evaluation.' });
+    var summary = diagnostic.overall;
+    return el('section', { class: 'panel model', 'aria-label': 'Calibration diagnostic' },
+      el('h2', { text: 'Held-out calibration check' }),
+      el('p', { text: summary.count + ' distinct token comparables; each prediction fits the scale using all other tokens.' }),
+      el('p', { text: 'Median absolute log error: fitted ' + summary.median_absolute_log_error.toFixed(3)
+        + ' · fixed 0.25× TVL baseline ' + summary.baseline_median_absolute_log_error.toFixed(3) }),
+      el('p', { class: 'sub', text: 'Smaller errors indicate closer held-out market caps in this snapshot. This diagnostic evaluates traded tokens; future launch accuracy remains unknown. Categories below five observations are omitted.' }),
+      el('ul', null, diagnostic.categories.map(function (group) {
+        return el('li', { text: group.category + ' (' + group.count + '): fitted '
+          + group.median_absolute_log_error.toFixed(3) + ', baseline ' + group.baseline_median_absolute_log_error.toFixed(3) });
+      }))
+    );
+  }
+
   function modelPanel() {
     var m = DATA.model;
     return el('section', { class: 'panel model' },
@@ -294,7 +311,7 @@
         el('div', null, el('dt', { text: 'Rank' }), el('dd', { text: [rank.p05, rank.median, rank.p95].map(function (n) { return '#' + n; }).join(' / ') })),
         el('div', null, el('dt', { text: 'Top ' + config.top_count + ' inclusion' }), el('dd', { text: inclusion + '%' }))
       ),
-      el('p', { class: 'sub', text: 'The refits change a shared value scale, so ranks typically stay fixed. These ranges describe model refits on this snapshot, rather than uncertainty about realized launch values.' })
+      el('p', { class: 'sub', text: 'The refits change a shared value scale, so relative ranks are structurally invariant (rounding can create ties). These ranges describe model refits on this snapshot, rather than uncertainty about realized launch values.' })
     );
   }
 
@@ -349,7 +366,7 @@
     shell.appendChild(lede());
     shell.appendChild(controls());
     shell.appendChild(state.tab === 'pre-token' ? boardTable() : liveTable());
-    if (state.tab === 'pre-token') shell.appendChild(modelPanel());
+    if (state.tab === 'pre-token') { shell.appendChild(diagnosticPanel()); shell.appendChild(modelPanel()); }
     app.appendChild(shell);
     app.setAttribute('aria-busy', 'false');
     if (!dialog.isConnected) app.appendChild(dialog);

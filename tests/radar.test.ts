@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { buildRadar, calibrateModel, impliedValue, MODEL, parseSnapshot } from '../lib/model.ts';
+import { measureRefitSensitivity } from '../lib/stability.ts';
 import { productResearch } from '../lib/evidence.ts';
 
 const path = process.env.RADAR_SNAPSHOT;
@@ -69,4 +70,25 @@ test('each real top-20 candidate has dated identity and route evidence', () => {
     assert.equal(new URL(evidence.source).protocol, 'https:');
     assert.equal(row.farm_steps[0], evidence.route);
   }
+});
+
+test('stratified refits reproduce candidate ranges and preserve calibrated category support', () => {
+  const { board } = buildRadar(snapshot);
+  const keys = board.map(row => row.slug);
+  const original = measureRefitSensitivity(snapshot, keys);
+  const replay = measureRefitSensitivity({ ...snapshot, protocols: [...snapshot.protocols].reverse() }, keys);
+  assert.deepEqual(replay, original);
+  assert.equal(original.refits, 200);
+  assert.equal(original.rows.size, keys.length);
+  assert.equal(original.category_strata_sizes.reduce((sum, size) => sum + size, 0), original.comparable_count);
+  assert.ok(original.category_strata_sizes.length > 1);
+  assert.ok(original.pooled_comparable_count > 0);
+  assert.equal([...original.rows.values()].reduce((sum, row) => sum + row.top_count_hits, 0),
+    original.refits * original.top_count);
+  for (const row of original.rows.values()) {
+    assert.ok(1 <= row.rank.p05 && row.rank.p05 <= row.rank.median && row.rank.median <= row.rank.p95 && row.rank.p95 <= keys.length);
+    assert.ok(1 <= row.value_usd.p05 && row.value_usd.p05 <= row.value_usd.median && row.value_usd.median <= row.value_usd.p95);
+    assert.ok(row.top_count_hits >= 0 && row.top_count_hits <= original.refits);
+  }
+  assert.ok([...original.rows.values()].some(row => row.value_usd.p05 < row.value_usd.p95));
 });

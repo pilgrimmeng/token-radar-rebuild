@@ -17,7 +17,7 @@ assert.ok((await stat(directory)).isDirectory());
 
 const browser = await chromium.launch({ executablePath: resolve(chrome), headless: true });
 try {
-  const page = await browser.newPage({ viewport: { width: 1360, height: 960 }, deviceScaleFactor: 1 });
+  const page = await browser.newPage({ viewport: { width: 1360, height: 1080 }, deviceScaleFactor: 1 });
   page.setDefaultTimeout(8000);
   const rejectedRequests = [];
   const pageErrors = [];
@@ -51,7 +51,14 @@ try {
       const shownValue = number.format(row.implied_value_usd);
       const parity = explanation?.textContent.includes(shownValue)
         && explanation.textContent.includes('the same number board.json carries');
-      if (!parity || JSON.stringify(steps) !== JSON.stringify(row.farm_steps)) {
+      const sensitivity = dialog.querySelector('[aria-label="Refit sensitivity"]');
+      const shownRange = Array.from(sensitivity.querySelectorAll('dd'), cell => cell.textContent);
+      const summary = row.refit_sensitivity;
+      const valueRange = [summary.value_usd.p05, summary.value_usd.median, summary.value_usd.p95].map(number.format).join(' / ');
+      const rankRange = [summary.rank.p05, summary.rank.median, summary.rank.p95].map(rank => '#' + rank).join(' / ');
+      const inclusion = (100 * summary.top_count_hits / window.RADAR.refit_sensitivity.refits).toFixed(1) + '%';
+      const refitMatches = JSON.stringify(shownRange) === JSON.stringify([valueRange, rankRange, inclusion]);
+      if (!parity || !refitMatches || JSON.stringify(steps) !== JSON.stringify(row.farm_steps)) {
         mismatches.push(row.slug);
       }
       dialog.close();

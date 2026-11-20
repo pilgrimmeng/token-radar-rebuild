@@ -30,3 +30,7 @@ node main.ts --input /path/to/kit/input/snapshot.json --output ./out
 ```
 
 The second entrypoint run rebuilds the dossier from the final screenshots.
+
+## Refit sensitivity
+
+The detail panel summarizes 200 seeded calibration refits with the same candidates and category-stratified sampling of distinct traded comparables. Categories with fewer than four comparables and unlabelled rows share a pool. Each refit uses the same bounded median calibration and the same scoring formula as the main board. The refits change a shared scale, so ranks usually remain fixed. The reported percentiles and top-20 frequency summarize refits of this snapshot.

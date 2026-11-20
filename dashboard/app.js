@@ -175,7 +175,7 @@
       },
         el('td', null,
           el('span', { class: 'num', text: String(r.rank) }),
-          el('span', { class: 'sub', title: 'Refit rank: 5th to 95th percentile', text: ' · ' + rankBand(r.refit_sensitivity.rank) })
+          el('span', { class: 'sub', title: 'Refit rank: 5th to 95th percentile', text: r.refit_sensitivity.rank.p05 === r.refit_sensitivity.rank.p95 ? ' · stable' : ' · ' + rankBand(r.refit_sensitivity.rank) })
         ),
         el('td', null, el('div', { class: 'name' },
           el('b', { text: r.name }),

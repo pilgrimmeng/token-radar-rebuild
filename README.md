@@ -1,6 +1,8 @@
 # Token Radar
 
 [![make.fun · token-radar-01](https://make.fun/badge/token-radar-01.svg)](https://make.fun/bounty/token-radar-01)
+[![rank](https://make.fun/badge/token-radar-01/pilgrimmeng/token-radar-rebuild/rank.svg)](https://make.fun/bounty/token-radar-01/leaderboard)
+[![reward](https://make.fun/badge/token-radar-01/pilgrimmeng/token-radar-rebuild/reward.svg)](https://make.fun/bounty/token-radar-01)
 
 An offline dashboard for the make.fun Token Radar bounty. It ranks 40 required watchlist protocols and 160 early candidates from the official frozen DefiLlama snapshot. The snapshot belongs next to the unpacked kit and stays outside Git.
 

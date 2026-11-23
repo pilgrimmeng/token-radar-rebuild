@@ -241,10 +241,18 @@
     var comparison = DATA.valuation_comparison;
     var fittedError = summary.median_absolute_log_error;
     var referenceError = summary.baseline_median_absolute_log_error;
+    var fixedAdjustedError = summary.fixed_adjusted_median_absolute_log_error;
+    var coefficientResult = fittedError < fixedAdjustedError ? 'The fitted coefficient has lower error.'
+      : fittedError > fixedAdjustedError ? 'The fixed coefficient has lower error.' : 'Both coefficients tie.';
     var result = fittedError === referenceError ? 'The models tie on this metric.'
       : (fittedError < referenceError ? comparison.primary.label : comparison.reference.label) + ' has the lower held-out error.';
     return el('section', { class: 'panel model', 'aria-label': 'Calibration diagnostic' },
       el('h2', { text: 'Held-out calibration check' }),
+      el('h3', { text: 'Coefficient comparison with identical adjustments' }),
+      el('p', { text: 'Median absolute log error: fitted coefficient ' + fittedError.toFixed(3)
+        + ' · fixed 0.25 coefficient ' + fixedAdjustedError.toFixed(3) }),
+      el('p', { class: 'sub', text: coefficientResult
+        + ' Both predictions use identical growth and listing-age adjustments on the same held-out tokens. Only the fitted coefficient is estimated from the remaining tokens.' }),
       el('p', { text: result + ' ' + comparison.primary.rationale }),
       el('p', { text: summary.count + ' distinct token comparables; each prediction fits the scale using all other tokens.' }),
       el('p', { text: 'Median absolute log error: fitted ' + summary.median_absolute_log_error.toFixed(3)

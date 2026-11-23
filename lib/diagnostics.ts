@@ -6,6 +6,8 @@ interface Prediction {
   observed_usd: number;
   predicted_usd: number;
   baseline_usd: number;
+  fixed_adjusted_usd: number;
+  fixed_adjusted_absolute_log_error: number;
   absolute_log_error: number;
   baseline_absolute_log_error: number;
   training_count: number;
@@ -18,7 +20,7 @@ export function fixedTvlEstimate(tvlUsd: number): number {
 export const valuationComparison = {
   primary: {
     label: 'Fitted growth-and-age model',
-    rationale: 'Retained for the radar ranking because it includes bounded growth and listing-age adjustments. The holdout compares the complete fitted model with a TVL-only reference; it cannot isolate the effect of fitting the scale.',
+    rationale: 'Retained for the radar ranking because it includes bounded growth and listing-age adjustments. The paired coefficient diagnostic holds growth and listing-age adjustments identical. The fixed coefficient has lower held-out median error on this snapshot; the fitted estimate is retained as the existing ranking scenario.',
   },
   reference: {
     label: 'Fixed 0.25× TVL reference',
@@ -37,6 +39,7 @@ function summarize(rows: Prediction[]) {
   return {
     count: rows.length,
     median_absolute_log_error: median(rows.map(row => row.absolute_log_error)),
+    fixed_adjusted_median_absolute_log_error: median(rows.map(row => row.fixed_adjusted_absolute_log_error)),
     baseline_median_absolute_log_error: median(rows.map(row => row.baseline_absolute_log_error)),
   };
 }
@@ -55,6 +58,8 @@ export function calibrationDiagnostic(snapshot: Snapshot) {
     const fitted = fitComparables(training, snapshot.as_of);
     const predicted = impliedValue(heldOut, snapshot.as_of, fitted).implied;
     const baseline = fixedTvlEstimate(heldOut.tvl_usd);
+    // 与拟合模型共用同一个留出代币及增长、收录时长调整，只固定估值系数。
+    const fixedAdjusted = impliedValue(heldOut, snapshot.as_of, MODEL).implied;
     const observed = heldOut.mcap_usd!;
     return {
       slug: heldOut.slug,
@@ -62,6 +67,8 @@ export function calibrationDiagnostic(snapshot: Snapshot) {
       observed_usd: observed,
       predicted_usd: predicted,
       baseline_usd: baseline,
+      fixed_adjusted_usd: fixedAdjusted,
+      fixed_adjusted_absolute_log_error: Math.abs(Math.log(fixedAdjusted / observed)),
       absolute_log_error: Math.abs(Math.log(predicted / observed)),
       baseline_absolute_log_error: Math.abs(Math.log(baseline / observed)),
       training_count: training.length,
@@ -76,6 +83,11 @@ export function calibrationDiagnostic(snapshot: Snapshot) {
     method: 'leave-one-token-out',
     status: 'evaluated',
     baseline: '0.25 times TVL, without growth or age adjustment',
+    coefficient_comparison: {
+      fixed_coefficient: MODEL.base_multiple,
+      adjustment_policy: 'Identical bounded growth and listing-age adjustments in both models.',
+      evaluation: 'The same held-out tokens and natural-log dollar errors; fitted coefficients use the other tokens only.',
+    },
     overall: summarize(predictions),
     categories,
     predictions,

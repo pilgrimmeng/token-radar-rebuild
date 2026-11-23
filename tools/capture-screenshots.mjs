@@ -38,6 +38,8 @@ try {
   assert.ok(diagnosticText.includes(exported.overall.count + ' distinct token comparables'));
   assert.ok(diagnosticText.includes(exported.overall.median_absolute_log_error.toFixed(3)));
   assert.ok(diagnosticText.includes(exported.overall.baseline_median_absolute_log_error.toFixed(3)));
+  assert.ok(diagnosticText.includes(exported.overall.fixed_adjusted_median_absolute_log_error.toFixed(3)));
+  await diagnostic.getByRole('heading', { name: 'Coefficient comparison with identical adjustments' }).waitFor();
   await page.screenshot({ path: join(directory, '1-board.png') });
 
   // Exercise the rendered detail calculations and compare their values and plans to board.json.

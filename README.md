@@ -36,3 +36,5 @@ The second entrypoint run rebuilds the dossier from the final screenshots.
 ## Refit sensitivity
 
 The detail panel summarizes 200 seeded calibration refits with the same candidates and category-stratified sampling of distinct traded comparables. Categories with fewer than four comparables and unlabelled rows share a pool. Each refit uses the same bounded median calibration and the same scoring formula as the main board. The refits change a shared scale, so ranks usually remain fixed. The reported percentiles and top-20 frequency summarize refits of this snapshot.
+
+The paired coefficient comparison uses the same 128 held-out tokens and identical bounded growth and listing-age adjustments. Median absolute log error is 1.646514 for fitted coefficients and 1.631675 for the fixed 0.25 coefficient. The fixed coefficient performs slightly better on this snapshot. The existing fitted ranking scenario is retained pending stronger evidence for changing the primary model.

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { calibrationDiagnostic } from '../lib/diagnostics.ts';
-import { fitComparables, impliedValue, parseSnapshot, tradedComparables } from '../lib/model.ts';
+import { fitComparables, impliedValue, MODEL, parseSnapshot, tradedComparables } from '../lib/model.ts';
 
 const snapshot = parseSnapshot(readFileSync(process.env.RADAR_SNAPSHOT!, 'utf8'));
 
@@ -34,4 +34,18 @@ test('an altered held-out cap cannot change its own fitted prediction', () => {
   const after = calibrationDiagnostic(altered);
   assert.equal(after.predictions.find(row => row.slug === token.slug)!.predicted_usd,
     original.predictions.find(row => row.slug === token.slug)!.predicted_usd);
+});
+
+test('coefficient comparison fixes all inputs and adjustments except the scale', () => {
+  const result = calibrationDiagnostic(snapshot);
+  const comparables = new Map(tradedComparables(snapshot).map(row => [row.slug, row]));
+  for (const row of result.predictions) {
+    const heldOut = comparables.get(row.slug)!;
+    const expected = impliedValue(heldOut, snapshot.as_of, MODEL);
+    assert.equal(row.fixed_adjusted_usd, expected.implied);
+    assert.equal(row.fixed_adjusted_absolute_log_error,
+      Math.abs(Math.log(expected.implied / row.observed_usd)));
+    assert.ok(Number.isFinite(row.fixed_adjusted_absolute_log_error));
+  }
+  assert.ok(Number.isFinite(result.overall!.fixed_adjusted_median_absolute_log_error));
 });

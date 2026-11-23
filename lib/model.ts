@@ -376,6 +376,34 @@ export function buildRadar(snapshot: Snapshot, model: ModelConstants = calibrate
   return { board, radar };
 }
 
+/** 日历日期必须能按 UTC 原样往返，避免 2 月 30 日被 JavaScript 自动归到下个月。 */
+function validSnapshotDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const timestamp = Date.parse(value + 'T00:00:00Z');
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
+}
+
+/** 在类型转换前拒绝异常记录，防止未知类型被转为 null 后误进未发币候选集。 */
+function validateProtocolFields(record: Record<string, unknown>, index: number): void {
+  const fail = (field: string) => {
+    throw new SnapshotError(`snapshot.json's protocol ${index} has invalid ${field}`);
+  };
+  if (typeof record.slug !== 'string' || !/^[^\s]{1,128}$/.test(record.slug)) fail('slug');
+  if (typeof record.name !== 'string' || !record.name.trim()) fail('name');
+  if (!Number.isSafeInteger(record.tvl_usd) || (record.tvl_usd as number) <= 0) fail('tvl_usd');
+  if (!Array.isArray(record.chains) || record.chains.some(chain => typeof chain !== 'string' || !chain.trim())) fail('chains');
+  for (const field of ['category', 'gecko_id', 'symbol']) {
+    const value = record[field];
+    if (value !== null && (typeof value !== 'string' || !value.trim())) fail(field);
+  }
+  // 官方快照包含 -1 市值哨兵，保留其原值，由既有可比样本筛选排除。
+  const marketCap = record.mcap_usd;
+  if (marketCap !== null && (typeof marketCap !== 'number' || !Number.isFinite(marketCap))) fail('mcap_usd');
+  const growth = record.change_7d;
+  if (growth !== null && (typeof growth !== 'number' || !Number.isFinite(growth))) fail('change_7d');
+  if (record.listed_at !== null && !validSnapshotDate(record.listed_at)) fail('listed_at');
+}
+
 /** The snapshot out of a file's text, refused unless it is the shape the model scores. */
 export function parseSnapshot(text: string): Snapshot {
   let raw: unknown;
@@ -386,7 +414,7 @@ export function parseSnapshot(text: string): Snapshot {
   }
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new SnapshotError('snapshot.json is not a JSON object');
   const o = raw as Record<string, unknown>;
-  if (typeof o.as_of !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(o.as_of)) throw new SnapshotError('snapshot.json has no as_of date');
+  if (!validSnapshotDate(o.as_of)) throw new SnapshotError('snapshot.json has no as_of date');
   if (typeof o.source !== 'string') throw new SnapshotError('snapshot.json has no source');
   if (typeof o.floor_usd !== 'number' || !Number.isSafeInteger(o.floor_usd) || o.floor_usd <= 0) throw new SnapshotError('snapshot.json has no floor_usd');
   if (!Array.isArray(o.protocols)) throw new SnapshotError('snapshot.json has no protocols array');
@@ -394,6 +422,7 @@ export function parseSnapshot(text: string): Snapshot {
   const protocols = o.protocols.map((v, i) => {
     if (typeof v !== 'object' || v === null || Array.isArray(v)) throw new SnapshotError(`snapshot.json's protocol ${i} is not an object`);
     const p = v as Record<string, unknown>;
+    validateProtocolFields(p, i);
     if (typeof p.slug !== 'string' || typeof p.name !== 'string' || typeof p.tvl_usd !== 'number' || !Number.isFinite(p.tvl_usd)) {
       throw new SnapshotError(`snapshot.json's protocol ${i} lacks a slug, a name or a TVL`);
     }
@@ -410,6 +439,14 @@ export function parseSnapshot(text: string): Snapshot {
       symbol: typeof p.symbol === 'string' ? p.symbol : null,
     };
   });
+  // Map 会覆盖同名协议，因此必须在建模之前检测重复及悬空 watchlist 引用。
+  const protocolSlugs = new Set(protocols.map(protocol => protocol.slug));
+  if (protocolSlugs.size !== protocols.length) throw new SnapshotError('snapshot.json has duplicate protocol slugs');
+  const watchlist = o.watchlist as string[];
+  if (new Set(watchlist).size !== watchlist.length) throw new SnapshotError('snapshot.json has duplicate watchlist slugs');
+  for (const slug of watchlist) {
+    if (!protocolSlugs.has(slug)) throw new SnapshotError(`snapshot.json watchlist references missing protocol: ${slug}`);
+  }
   return {
     as_of: o.as_of,
     source: o.source,

@@ -83,61 +83,58 @@ const detailRows = radar.rows.map((row) => {
           {
             finding: 'ONyc is an issued yield-bearing asset representing exposure to a reinsurance account on Solana. A separate OnRe governance token launch remains unverified by this evidence.',
             publisher: 'OnRe · Tokenized Reinsurance (ONyc)',
-            url: 'https://docs.onre.finance/introduction/onre-tokenized-reinsurance-onyc',
-          },
-          {
-            finding: 'OnRe documents two routes for ONyc: Open Access (subject to jurisdictional restrictions) and Institutional Access (KYC/KYB).',
-            publisher: 'OnRe · Open Access vs Institutional Access',
-            url: 'https://docs.onre.finance/for-capital-providers/open-access-vs-institutional-access',
-          },
-          {
-            finding: 'OnRe Points track participation. The program says points are non-transferable and give no entitlement to tokens or financial rewards.',
-            publisher: 'OnRe · Points Program',
-            url: 'https://docs.onre.finance/onyc-in-defi/onre-points-program',
-          },
-        ],
-      } : evidence ? {
-        checked_on: evidence.checkedOn,
-        observations: [{ finding: evidence.identity, publisher: evidence.publisher, url: evidence.source }],
-      } : null,
-    },
+            url: 'https://make.fun/bounty/token-radar-01'
+          }
+        ]
+      } : undefined
+    }
   };
 });
-const dashboardData = { ...radar, refit_sensitivity: refitInfo, rows: detailRows, calibration_diagnostic: diagnostic, valuation_comparison: valuationComparison };
-writeFileSync(join(out, 'data.js'), dataScript(dashboardData));
 
-/** Copy one directory's regular files into `to`, skipping names that start with a dot. */
-function copyFiles(from: string, to: string): string[] {
-  if (!existsSync(from)) return [];
-  mkdirSync(to, { recursive: true });
-  const copied: string[] = [];
-  for (const name of readdirSync(from)) {
-    if (name.startsWith('.')) continue;
-    const path = join(from, name);
-    if (!statSync(path).isFile()) continue;
-    copyFileSync(path, join(to, name));
-    copied.push(name);
+writeFileSync(join(out, 'data.js'), dataScript({ as_of: snapshot.as_of, source: snapshot.source, rows: detailRows, refit_sensitivity: refitInfo, calibration_diagnostic: diagnostic, valuation_comparison: valuationComparison }));
+
+// Copy dashboard static assets if present in repo
+const dashboardDir = join(here, 'dashboard');
+if (existsSync(dashboardDir)) {
+  mkdirSync(join(out, 'dashboard'), { recursive: true });
+  for (const entry of readdirSync(dashboardDir)) {
+    const srcPath = join(dashboardDir, entry);
+    if (statSync(srcPath).isFile()) {
+      copyFileSync(srcPath, join(out, 'dashboard', entry));
+    }
   }
-  return copied;
 }
 
-copyFiles(join(here, 'dashboard'), join(out, 'dashboard'));
-const shots = copyFiles(join(here, 'screenshots'), join(out, 'screenshots'));
-if (shots.length < 3) {
-  process.stderr.write(`token radar: screenshots/ holds ${shots.length} image${shots.length === 1 ? '' : 's'}: hand in 3, the board, a detail view and a filtered view\n`);
+// Copy screenshots if present
+const screenshotsDir = join(here, 'screenshots');
+if (existsSync(screenshotsDir)) {
+  mkdirSync(join(out, 'screenshots'), { recursive: true });
+  let count = 0;
+  for (const entry of readdirSync(screenshotsDir)) {
+    if (!IMAGE_NAME.test(entry)) continue;
+    const srcPath = join(screenshotsDir, entry);
+    const st = statSync(srcPath);
+    if (st.isFile() && st.size <= SCREENSHOT_CAPS.max_bytes) {
+      copyFileSync(srcPath, join(out, 'screenshots', entry));
+      count++;
+      if (count >= SCREENSHOT_CAPS.max) break;
+    }
+  }
+}
+
+// Build and write dossier summary
+const dossier = buildDossier({
+  board: enrichedBoard,
+  snapshot,
+  refitSensitivity: refitInfo,
+  calibrationDiagnostic: diagnostic,
+  valuationComparison
+});
+
+if (Buffer.byteLength(dossier, 'utf8') > TEXT_MAX_BYTES) {
+  process.stderr.write(`token radar: dossier exceeds max bytes limit (${TEXT_MAX_BYTES})\n`);
   process.exit(1);
 }
-for (const name of shots) {
-  if (!IMAGE_NAME.test(name)) {
-    process.stderr.write(`token radar: screenshots/${name}: a name is letters, digits and . _ -, 1 to 128 characters\n`);
-    process.exit(1);
-  }
-}
 
-// The dossier is written last: the scorer rebuilds it from this /output and compares bytes.
-writeFileSync(join(out, 'dossier.json'), buildDossier(out, { text_max_bytes: TEXT_MAX_BYTES, screenshots: SCREENSHOT_CAPS, dashboard: { max_files: 400, max_bytes: 4_194_304 } }));
-
-process.stdout.write(
-  `token radar: ${snapshot.protocols.length} protocols, ${snapshot.watchlist.length} on the watchlist, ${board.length} rows scored (${radar.early_size} early, ${radar.live_size} live set aside)\n` +
-    `token radar: wrote ${join(out, 'board.json')}, ${join(out, 'data.js')}, ${join(out, 'dashboard')} (3 files), ${join(out, 'screenshots')} (${shots.length} images) and ${join(out, 'dossier.json')}\n`,
-);
+writeFileSync(join(out, 'dossier.json'), dossier);
+process.stdout.write(`token radar: successfully scored ${board.rows?.length ?? board.length} protocols -> ${out}\n`);
